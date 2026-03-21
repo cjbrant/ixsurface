@@ -2,7 +2,7 @@
 
 Interactive 3D surface plots for visualizing multi-factor interactions from fitted models.
 
-Instead of examining combinatorial pairwise interaction plots, `ixsurface` maps factor combinations to response surfaces and uses **surface crossings** as geometric indicators of interaction effects. Where surfaces cross, the effect of one factor depends on the level of another — the definition of an interaction.
+Instead of examining combinatorial pairwise interaction plots, `ixsurface` maps factor combinations to response surfaces and uses **surface crossings** as geometric indicators of interaction effects. Where surfaces cross, the effect of one factor depends on the level of another; the definition of an interaction.
 
 ## Installation
 
