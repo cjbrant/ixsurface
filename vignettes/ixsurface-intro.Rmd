@@ -1,0 +1,185 @@
+---
+title: "Getting Started with ixsurface"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting Started with ixsurface}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE
+)
+library(ixsurface)
+```
+
+## Overview
+
+`ixsurface` generates interactive 3D surface plots from fitted models to visualize
+multi-factor interactions. Where surfaces cross, the effect of one factor depends
+on the level of another — the geometric signature of an interaction.
+
+**Geometric interpretation:**
+
+- **Parallel surfaces** = no interaction between the conditioning factor and focal variables
+- **Crossing surfaces** = interaction present
+- **Twisted/warped surfaces** = higher-order or nonlinear interaction
+
+## Simulating Data
+
+`sim_factorial()` generates synthetic factorial data with known interaction
+structure. Three designs are available:
+
+```{r sim}
+library(ixsurface)
+
+# Mixed: 2 continuous + 1 categorical factor
+dat = sim_factorial(n = 300, design = "mixed", seed = 42)
+str(dat)
+
+# Continuous: 3 continuous factors
+dat_cont = sim_factorial(n = 300, design = "continuous", seed = 42)
+
+# Categorical: 3 categorical factors
+dat_cat = sim_factorial(n = 300, design = "categorical", seed = 42)
+```
+
+All designs include main effects, two-way interactions, and a weaker three-way
+interaction, making it straightforward to verify that surfaces cross where expected.
+
+## Main Function: interaction_surface
+
+The primary function takes a fitted model and maps two focal variables to the
+x and y axes, with predicted response on z. The `facet_by` argument generates
+a separate surface for each level of a conditioning variable.
+
+```{r surface-basic}
+fit = lm(y ~ temp * pressure * catalyst, data = dat)
+
+# One surface per catalyst level
+interaction_surface(fit, x = "temp", y = "pressure", facet_by = "catalyst")
+```
+
+*This produces an interactive plotly widget with three colored surfaces. Rotate,
+zoom, and hover to inspect predicted values.*
+
+### Full Feature Example
+
+Enable observed data overlay, crossing markers, and contour projection:
+
+```{r surface-full}
+interaction_surface(
+  fit, x = "temp", y = "pressure", facet_by = "catalyst",
+  show_points = TRUE, show_crossings = TRUE, show_contour = TRUE,
+  alpha = 0.5,
+  labs = list(x = "Temperature (C)", y = "Pressure (psi)", z = "Yield"),
+  title = "Mixed Design: temp x pressure | catalyst"
+)
+```
+
+*Three surfaces appear with red crossing markers where they intersect. Red circles
+on the floor plane show the contour projection. Colored scatter points are observed
+data, matched to their nearest surface.*
+
+### Single Surface
+
+Omitting `facet_by` produces a single response surface. Non-focal variables are
+held at their median (continuous) or mode (categorical):
+
+```{r surface-single}
+interaction_surface(fit, x = "temp", y = "pressure",
+                    show_points = TRUE, alpha = 0.7)
+```
+
+## GLM Support
+
+For `glm` models, predictions are automatically on the response scale via
+`predict(..., type = "response")`. For logistic regression, surfaces represent
+probabilities bounded to [0, 1]:
+
+```{r glm}
+dat$success = rbinom(nrow(dat), 1, plogis((dat$y - 50) / 5))
+gfit = glm(success ~ temp * pressure * catalyst, data = dat, family = binomial)
+
+interaction_surface(gfit, x = "temp", y = "pressure", facet_by = "catalyst",
+                    labs = list(z = "P(success)"))
+```
+
+## Continuous Conditioning Variables
+
+When a continuous variable is used as `facet_by`, it is automatically binned.
+Control this with `n_bins` and `bin_method`:
+```{r continuous-facet}
+fit_cont = lm(y ~ temp * pressure * speed, data = dat_cont)
+
+interaction_surface(fit_cont, x = "temp", y = "pressure", facet_by = "speed",
+                    n_bins = 4, bin_method = "quantile",
+                    show_crossings = TRUE)
+```
+
+## Crossing Detection: find_crossings
+
+`find_crossings()` returns a data frame of approximate crossing locations without
+generating a plot. Useful for programmatic analysis:
+
+```{r find-crossings}
+cx = find_crossings(fit, "temp", "pressure", "catalyst")
+head(cx)
+#>         cx       cy       cz               pair_label
+#> 1  150.000 10.81633 44.66789 catalyst=A vs catalyst=B
+#> 2  152.041 10.81633 44.67123 catalyst=A vs catalyst=B
+#> ...
+
+table(cx$pair_label)
+```
+
+The returned data frame has columns `cx`, `cy`, `cz` (coordinates) and
+`pair_label` (which surface pair crosses).
+
+## Crossings-Only Visualization: plot_crossings
+
+`plot_crossings()` renders just the crossing points as a 3D scatter, stripping
+away the surfaces to focus on where interaction effects are strongest:
+
+```{r plot-crossings}
+plot_crossings(fit, "temp", "pressure", "catalyst",
+               labs = list(x = "Temp (C)", y = "Press (psi)", z = "Yield"),
+               marker_size = 4, marker_opacity = 0.8)
+```
+
+*Points are color-coded by surface pair.*
+
+## Pairwise Grid: interaction_surface_grid
+
+For exploratory analysis, `interaction_surface_grid()` generates all C(k, 2)
+pairwise plots. Remaining variables become conditioning factors:
+
+```{r grid}
+plots = interaction_surface_grid(fit, n = 20)
+names(plots)
+#> [1] "temp__pressure"    "temp__catalyst"    "pressure__catalyst"
+
+# View individual plots
+plots$temp__pressure
+```
+
+## Metadata Access
+
+Every `interaction_surface()` plot carries an `ixsurface_meta` attribute for
+downstream use:
+
+```{r metadata}
+p = interaction_surface(fit, x = "temp", y = "pressure",
+                        facet_by = "catalyst", n = 20)
+meta = attr(p, "ixsurface_meta")
+meta$n_surfaces
+#> [1] 3
+meta$surface_labels
+#> [1] "catalyst=A" "catalyst=B" "catalyst=C"
+```
+
+The metadata includes `z_matrices` (one matrix per surface), `x_vals`, `y_vals`,
+and `binned_by` information for continuous conditioning variables.

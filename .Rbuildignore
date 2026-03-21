@@ -1,0 +1,14 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^LICENSE\.md$
+^README\.md$
+^explore\.R$
+^explore\.Rmd$
+^explore\.html$
+^Example\.Rmd$
+^demo\.R$
+^\{R,man,inst,tests$
+^doc$
+^Meta$
+^vignettes/.*_cache$
+^vignettes/.*_files$

@@ -1,0 +1,138 @@
+---
+title: "ixsurface Visual Exploration"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+install.packages(".", repos = NULL, type = "source", quiet = TRUE)
+library(ixsurface)
+```
+
+## 1. Mixed Design — Crossing Surfaces with Observed Data
+
+Two continuous factors (temp, pressure) conditioned on a categorical factor (catalyst).
+Surfaces cross where interaction effects dominate.
+
+```{r mixed, fig.height=6}
+dat = sim_factorial(n = 400, design = "mixed", seed = 7)
+fit = lm(y ~ temp * pressure * catalyst, data = dat)
+
+interaction_surface(
+  fit, x = "temp", y = "pressure", facet_by = "catalyst",
+  show_points = TRUE, show_crossings = TRUE, show_contour = TRUE,
+  alpha = 0.5,
+  labs = list(x = "Temperature (C)", y = "Pressure (psi)", z = "Yield"),
+  title = "Catalyst Interaction: surfaces cross where effects dominate"
+)
+```
+
+### Crossings Only
+
+```{r mixed-cx, fig.height=6}
+plot_crossings(fit, "temp", "pressure", "catalyst",
+               labs = list(x = "Temperature (C)", y = "Pressure (psi)", z = "Yield"),
+               title = "Mixed: crossing points by surface pair")
+```
+
+## 2. GLM — Probability Surfaces Bounded [0, 1]
+
+Logistic regression predictions on the response scale. Surfaces show P(success)
+for each catalyst level.
+
+```{r glm, fig.height=6}
+dat$success = rbinom(nrow(dat), 1, plogis((dat$y - 50) / 4))
+gfit = glm(success ~ temp * pressure * catalyst, data = dat, family = binomial)
+
+interaction_surface(
+  gfit, x = "temp", y = "pressure", facet_by = "catalyst",
+  show_crossings = TRUE, show_contour = TRUE, alpha = 0.5,
+  labs = list(z = "P(success)"),
+  title = "Logistic: probability surfaces by catalyst"
+)
+```
+
+### Crossings Only
+
+```{r glm-cx, fig.height=6}
+plot_crossings(gfit, "temp", "pressure", "catalyst",
+               labs = list(z = "P(success)"),
+               title = "GLM: crossing points by surface pair")
+```
+
+## 3. Continuous Facet — Speed Auto-Binned
+
+All three factors are continuous. Speed is automatically binned into 4 quantile
+groups to produce separate surfaces.
+
+```{r continuous, fig.height=6}
+dat2 = sim_factorial(n = 400, design = "continuous", seed = 7)
+fit2 = lm(y ~ temp * pressure * speed, data = dat2)
+
+interaction_surface(
+  fit2, x = "temp", y = "pressure", facet_by = "speed",
+  n_bins = 4, bin_method = "quantile",
+  show_crossings = TRUE, show_contour = TRUE, alpha = 0.5,
+  title = "Continuous facet: speed auto-binned into 4 quantile groups"
+)
+```
+
+### Crossings Only
+
+```{r continuous-cx, fig.height=6}
+plot_crossings(fit2, "temp", "pressure", "speed",
+               n_bins = 4, bin_method = "quantile",
+               title = "Continuous: crossing points by speed-bin pair")
+```
+
+## 4. Fully Categorical Design
+
+All factors are discrete. Axis tick labels show level names.
+
+```{r categorical, fig.height=6}
+dat3 = sim_factorial(n = 400, design = "categorical", seed = 7)
+fit3 = lm(y ~ catalyst * operator * shift, data = dat3)
+
+interaction_surface(
+  fit3, x = "catalyst", y = "operator", facet_by = "shift",
+  show_points = TRUE, show_crossings = TRUE, alpha = 0.6,
+  title = "Categorical: catalyst x operator | shift"
+)
+```
+
+### Crossings Only
+
+```{r categorical-cx, fig.height=6}
+plot_crossings(fit3, "catalyst", "operator", "shift",
+               title = "Categorical: crossing points by shift pair")
+```
+
+## 5. Single Surface (No Facet)
+
+When `facet_by` is omitted, a single response surface is plotted.
+Non-focal variables are held at their median/mode. No crossings possible with
+a single surface.
+
+```{r single, fig.height=6}
+interaction_surface(
+  fit, x = "temp", y = "pressure",
+  show_points = TRUE, alpha = 0.7,
+  title = "Single surface: temp x pressure (catalyst held at mode)"
+)
+```
+
+## 6. Pairwise Grid
+
+`interaction_surface_grid` generates all C(k, 2) pairwise plots automatically.
+
+```{r grid, fig.height=6}
+grid_plots = interaction_surface_grid(fit, n = 20)
+grid_plots$temp__pressure
+```
+
+```{r grid2, fig.height=6}
+grid_plots$temp__catalyst
+```
+
+```{r grid3, fig.height=6}
+grid_plots$pressure__catalyst
+```
