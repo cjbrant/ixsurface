@@ -7,7 +7,7 @@
 ^explore\.html$
 ^Example\.Rmd$
 ^demo\.R$
-^\{R,man,inst,tests$
+^README\.pdf$
 ^doc$
 ^Meta$
 ^vignettes/.*_cache$
