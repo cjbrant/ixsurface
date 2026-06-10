@@ -44,6 +44,30 @@ This produces an interactive plotly widget with three colored surfaces. Rotate, 
    - **Crossing surfaces** = interaction present
    - **Twisted/warped surfaces** = higher-order or nonlinear interaction
 
+## Model Comparison (v0.2.0+)
+
+Compare prediction surfaces from multiple models:
+
+\`\`\`r
+library(ixsurface)
+library(caret)
+
+tr = trainControl(method = "cv", number = 10, savePredictions = "final")
+fit_lm  = train(mpg ~ weight + year, data = Auto, method = "lm",
+                trControl = tr)
+fit_knn = train(mpg ~ weight + year, data = Auto, method = "knn",
+                trControl = tr, tuneGrid = data.frame(k = 20))
+
+# Smooth prediction surfaces
+model_surface(list(linear = fit_lm, knn = fit_knn),
+              x = "weight", y = "year")
+
+# Regional performance map (uses CV residuals)
+model_dominance(list(linear = fit_lm, knn = fit_knn),
+                x = "weight", y = "year", response = "mpg", data = Auto)
+\`\`\`
+
+
 ## Functions
 
 ### Core Visualization
